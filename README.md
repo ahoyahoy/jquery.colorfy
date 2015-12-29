@@ -12,11 +12,24 @@ alt="Screencast" width="240" height="180" border="10" /></a>
 
 ## Usage
 ``` javascript
-$("#your_text_area").colorfy("yourDescriptor");
+const $input = $("#your_text_area").colorfy("yourDescriptorName" [, "namespaceClassName"]);
 ```
-The descriptor can be registered like this
+or 
 ``` javascript
-$.fn.colorfy.yourDescriptor = {
+const descriptor = {
+	"highlighted": /word/
+}
+const $input = $("#your_text_area").colorfy(descriptor, "namespaceClassName");
+```
+You can update descriptor
+``` javascript
+$input.updateDescriptor({
+	"highlighted": /anotherWord/
+});
+```
+The descriptor can be registered like varialbe or globally like this
+``` javascript
+$.fn.colorfy.yourDescriptorName = {
   "keyword": /function|typeof|instanceof|var/,
   "operator": /[+-*/%]/,
   "string": /(["']).*+\1/m

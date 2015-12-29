@@ -119,20 +119,25 @@ const ColorNode = class {
 // Unused currently, use $.fn.colorfy instead
 let syntaxDescriptors = {};
 
-const _colorfy = function(text, descriptor, htmlfier, descriptorName) {
+const _colorfy = function(text, descriptor, htmlfier, klass) {
   htmlfier || (htmlfier = htmlfy);
-  let node = new ColorNode(text, htmlfier, descriptor, descriptorName);
+  let node = new ColorNode(text, htmlfier, descriptor, klass);
   return node.toHTML();
 };
 
-const colorfy = function(text, descriptorName) {
+const colorfy = function(text, desc, klass) {
   let descriptor;
-  if (jQuery) {
-    descriptor = jQuery.fn.colorfy[descriptorName];
-  } else {
-    descriptor = syntaxDescriptors[descriptorName];
+  if (typeof desc === 'string') {
+    if (jQuery) {
+      descriptor = jQuery.fn.colorfy[descriptorName];
+    } else {
+      descriptor = syntaxDescriptors[descriptorName];
+    }  
   }
-  return _colorfy(text, descriptor, htmlfy, descriptorName);
+  else {
+    descriptor = desc;
+  }
+  return _colorfy(text, descriptor, htmlfy, klass);
 };
 
 const parentsOfNode = function(node) {
@@ -245,9 +250,12 @@ const restoreCursor = function(root) {
   if (document.activeElement != root) return;
   let sel = window.getSelection();
   if (!sel.isCollapsed) return;
-  let [anchor, offset] = nodeAndOffset(root.getAttribute('data-cursor'), root);
-  if (anchor && offset >= 0) {
-    sel.collapse(anchor, offset);
+  let cur = root.getAttribute('data-cursor');
+  if (cur > 0) {
+    let [anchor, offset] = nodeAndOffset(cur, root);
+    if (anchor && offset >= 0) {
+      sel.collapse(anchor, offset);
+    }
   }
 };
 
@@ -263,14 +271,22 @@ const saveCursor = function(root) {
 };
 
 const Colorfy = class {
-  constructor(node) {
+  constructor(node, descriptor, klass) {
     this.node = node;
+    this.descriptor = descriptor;
+    this.klass = klass;
+    this.colorfy();
   }
-  colorfy(syntaxDescriptor) {
+  updateDescriptor(descriptor) {
+    this.descriptor = descriptor;
+    jQuery(this.node).trigger('change');
+  }
+  colorfy() {
     // Create fake text area
     // which is actually a 'contenteditable' div
     let fakeDiv = document.createElement('div');
     fakeDiv.setAttribute("contenteditable", true);
+    fakeDiv.setAttribute("spellcheck", false);
 
     // Copy style
     fakeDiv.setAttribute("class", this.node.getAttribute("class"));
@@ -330,7 +346,7 @@ const Colorfy = class {
       fakeDiv.addEventListener("paste", sendToArea);
     }
 
-    fakeDiv.addEventListener("receive-content", function(e) {
+    fakeDiv.addEventListener("receive-content", (e) => {
       let innerText = "";
       if (thisBrowser == "Firefox") {
         innerText = fakeDiv.textContent;
@@ -342,7 +358,7 @@ const Colorfy = class {
       } else {
         fakeDiv.style.display = "inline-block";
       }
-      fakeDiv.innerHTML = colorfy(fakeDiv.dataText, syntaxDescriptor);
+      fakeDiv.innerHTML = colorfy(fakeDiv.dataText, this.descriptor, this.klass);
       restoreCursor(fakeDiv);
     });
 
@@ -362,9 +378,6 @@ const Colorfy = class {
   }
 };
 
-jQuery.fn.colorfy = function(syntaxDescriptor) {
-  this.each(function(){
-    let colorfyObject = new Colorfy(this);
-    colorfyObject.colorfy(syntaxDescriptor);
-  });
+jQuery.fn.colorfy = function(descriptor, klass) {
+    return new Colorfy(this.get(0), descriptor, klass);
 };

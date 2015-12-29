@@ -157,20 +157,24 @@ var ColorNode = (function () {
 // Unused currently, use $.fn.colorfy instead
 var syntaxDescriptors = {};
 
-var _colorfy = function _colorfy(text, descriptor, htmlfier, descriptorName) {
+var _colorfy = function _colorfy(text, descriptor, htmlfier, klass) {
   htmlfier || (htmlfier = htmlfy);
-  var node = new ColorNode(text, htmlfier, descriptor, descriptorName);
+  var node = new ColorNode(text, htmlfier, descriptor, klass);
   return node.toHTML();
 };
 
-var _colorfy2 = function _colorfy2(text, descriptorName) {
+var _colorfy2 = function _colorfy2(text, desc, klass) {
   var descriptor = undefined;
-  if (jQuery) {
-    descriptor = jQuery.fn.colorfy[descriptorName];
+  if (typeof desc === 'string') {
+    if (jQuery) {
+      descriptor = jQuery.fn.colorfy[descriptorName];
+    } else {
+      descriptor = syntaxDescriptors[descriptorName];
+    }
   } else {
-    descriptor = syntaxDescriptors[descriptorName];
+    descriptor = desc;
   }
-  return _colorfy(text, descriptor, htmlfy, descriptorName);
+  return _colorfy(text, descriptor, htmlfy, klass);
 };
 
 var parentsOfNode = function parentsOfNode(node) {
@@ -249,7 +253,6 @@ var nodeAndOffset = function nodeAndOffset(_x2, _x3) {
   _function: while (_again) {
     var location = _x2,
         node = _x3;
-    i = _len = child = undefined;
     _again = false;
 
     if (lengthOfNode(node) < location) return [];
@@ -280,6 +283,7 @@ var nodeAndOffset = function nodeAndOffset(_x2, _x3) {
           _x2 = location;
           _x3 = child;
           _again = true;
+          i = _len = child = undefined;
           continue _function;
         }
       }
@@ -291,16 +295,18 @@ var restoreCursor = function restoreCursor(root) {
   if (document.activeElement != root) return;
   var sel = window.getSelection();
   if (!sel.isCollapsed) return;
+  var cur = root.getAttribute('data-cursor');
+  if (cur > 0) {
+    var _nodeAndOffset = nodeAndOffset(cur, root);
 
-  var _nodeAndOffset = nodeAndOffset(root.getAttribute('data-cursor'), root);
+    var _nodeAndOffset2 = _slicedToArray(_nodeAndOffset, 2);
 
-  var _nodeAndOffset2 = _slicedToArray(_nodeAndOffset, 2);
+    var anchor = _nodeAndOffset2[0];
+    var offset = _nodeAndOffset2[1];
 
-  var anchor = _nodeAndOffset2[0];
-  var offset = _nodeAndOffset2[1];
-
-  if (anchor && offset >= 0) {
-    sel.collapse(anchor, offset);
+    if (anchor && offset >= 0) {
+      sel.collapse(anchor, offset);
+    }
   }
 };
 
@@ -316,21 +322,31 @@ var saveCursor = function saveCursor(root) {
 };
 
 var Colorfy = (function () {
-  function Colorfy(node) {
+  function Colorfy(node, descriptor, klass) {
     _classCallCheck(this, Colorfy);
 
     this.node = node;
+    this.descriptor = descriptor;
+    this.klass = klass;
+    this.colorfy();
   }
 
   _createClass(Colorfy, [{
+    key: "updateDescriptor",
+    value: function updateDescriptor(descriptor) {
+      this.descriptor = descriptor;
+      jQuery(this.node).trigger('change');
+    }
+  }, {
     key: "colorfy",
-    value: function colorfy(syntaxDescriptor) {
+    value: function colorfy() {
       var _this = this;
 
       // Create fake text area
       // which is actually a 'contenteditable' div
       var fakeDiv = document.createElement('div');
       fakeDiv.setAttribute("contenteditable", true);
+      fakeDiv.setAttribute("spellcheck", false);
 
       // Copy style
       fakeDiv.setAttribute("class", this.node.getAttribute("class"));
@@ -403,7 +419,7 @@ var Colorfy = (function () {
         } else {
           fakeDiv.style.display = "inline-block";
         }
-        fakeDiv.innerHTML = _colorfy2(fakeDiv.dataText, syntaxDescriptor);
+        fakeDiv.innerHTML = _colorfy2(fakeDiv.dataText, _this.descriptor, _this.klass);
         restoreCursor(fakeDiv);
       });
 
@@ -426,9 +442,6 @@ var Colorfy = (function () {
   return Colorfy;
 })();
 
-jQuery.fn.colorfy = function (syntaxDescriptor) {
-  this.each(function () {
-    var colorfyObject = new Colorfy(this);
-    colorfyObject.colorfy(syntaxDescriptor);
-  });
+jQuery.fn.colorfy = function (descriptor, klass) {
+  return new Colorfy(this.get(0), descriptor, klass);
 };
